@@ -1,0 +1,2 @@
+p, admin, /ids/v1/domains/:domain/ids/:id, GET
+g, alfredo, admin
