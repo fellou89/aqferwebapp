@@ -16,6 +16,6 @@
   - secrets needs to go somehwere in the list before the middleware that needs to access the data in the file that was read
   - awsdynamodb can go anywhere on the list at the moment
   - The order of the directives on this list matters, not the order in the Caddyfile
-4. cd to $GOPATH/src/github.com/mholt/caddy/caddy and run go run build.go, this command needs to be run every time a change is made to the middleware plugins
+4. cd to $GOPATH/src/github.com/mholt/caddy/caddy and execute `go run build.go`, this has to be done every time a change is made to the middleware plugins
 5. Make sure the updated Caddy binary is in your PATH
 6. Comment -out or -in directives you want to run in the Caddyfile, and execute caddy from this repo's directory
