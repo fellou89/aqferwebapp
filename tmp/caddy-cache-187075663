@@ -1,0 +1,1 @@
+{"User":"testuser","Email":"testuser@testdomain.com","Scope":{"cids":"*"},"Type":"refresh_token","Roles":["access_key_validator"]}

@@ -1,7 +1,12 @@
 localhost:8082
-secrets .secrets.yml root 4242
-log ./log/access.log
-basicauth /ids/v1/ alfredo asdfasdf
-authz ./authz_model.conf ./policies_authz.csv
 awscloudwatch aqfer.io development 65536
+jwt /ids/v1
+reauth {
+  path /ids/v1
+  refresh url=http://localhost:8083,skipverify=true,timeout=5s,follow=true
+  failure status code=403
+}
 awsdynamodb
+
+# secrets .secrets.yml
+# log ./log/access.log
