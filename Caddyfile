@@ -1,9 +1,9 @@
 localhost:8082
-awscloudwatch aqfer.io development 65536
+awscloudwatch aqfer.io development 65536 debug
 jwt /ids/v1
 reauth {
   path /ids/v1
-  refresh url=http://localhost:8083,skipverify=true,timeout=5s,follow=true
+  refresh url=http://localhost:8083,skipverify=true,timeout=5s,follow=true,cache_path=tmp,lock_timeout=5m
   failure status code=403
 }
 awsdynamodb

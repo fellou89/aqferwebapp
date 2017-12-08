@@ -13,7 +13,8 @@ func main() {
 }
 
 func Auth(w http.ResponseWriter, r *http.Request) {
-	token := r.Header["Authorization"][0][7:]
+	authorizations := r.Header["Authorization"]
+	token := authorizations[0][7:]
 	// fmt.Printf("Received Refresh Token: %+v\n", token)
 
 	sc := auth.SecurityContext{
