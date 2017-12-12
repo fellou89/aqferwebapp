@@ -19,3 +19,9 @@
 4. cd to $GOPATH/src/github.com/mholt/caddy/caddy and execute `go run build.go`, this has to be done every time a change is made to the middleware plugins
 5. Make sure the updated Caddy binary is in your PATH
 6. Comment -out or -in directives you want to run in the Caddyfile, and execute caddy from this repo's directory
+
+**Steps for aws stack:**
+1. pip install --upgrade pip
+2. pip install --upgrade awscli
+3. configure values for stack on aws/createResources.sh
+4. execute `./createResources.sh` in the aws directory

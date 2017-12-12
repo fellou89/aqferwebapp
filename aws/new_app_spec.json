@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Simple CRUD web service. State is stored in a DynamoDB table.
+Resources:
+  DynamoDBTable:
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: partition-key
+        AttributeType: S
+      - AttributeName: sort-key
+        AttributeType: S
+      KeySchema:
+      - AttributeName: partition-key
+        KeyType: HASH
+      - AttributeName: sort-key
+        KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+      TableName: aqfer-idsync3
+    Type: AWS::DynamoDB::Table
+  EC2Instance:
+    Properties:
+      BlockDeviceMappings:
+      - DeviceName: /dev/xvda
+        Ebs:
+          DeleteOnTermination: true
+          VolumeSize: 8
+          VolumeType: gp2
+      ImageId: ami-55ef662f
+      InstanceType: t2.nano
+      KeyName: AqferKeyPair
+      NetworkInterfaces:
+      - AssociatePublicIpAddress: 'true'
+        DeleteOnTermination: 'true'
+        DeviceIndex: '0'
+        GroupSet:
+        - Ref: SecurityGroup
+        SubnetId:
+          Ref: PublicSubnet
+    Type: AWS::EC2::Instance
+  PublicSubnet:
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      VpcId:
+        Ref: VPC
+    Type: AWS::EC2::Subnet
+  SecurityGroup:
+    Properties:
+      GroupDescription: Doing if for each instance, could create one apart to reuse
+      GroupName: launch-wizard-3
+      SecurityGroupEgress:
+      - CidrIp: 0.0.0.0/0
+        FromPort: '80'
+        IpProtocol: tcp
+        ToPort: '80'
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0
+        FromPort: '22'
+        IpProtocol: tcp
+        ToPort: '22'
+      VpcId:
+        Ref: VPC
+    Type: AWS::EC2::SecurityGroup
+  VPC:
+    Properties:
+      CidrBlock: 10.0.0.0/16
+    Type: AWS::EC2::VPC
+Transform: AWS::Serverless-2016-10-31

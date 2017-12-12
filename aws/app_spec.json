@@ -1,0 +1,93 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Transform": "AWS::Serverless-2016-10-31",
+  "Description": "Simple CRUD web service. State is stored in a DynamoDB table.",
+  "Resources": {
+    "DynamoDBTable" : {
+      "Type" : "AWS::DynamoDB::Table",
+      "Properties" : {
+        "AttributeDefinitions" : [
+          {
+            "AttributeName" : "partition-key",
+            "AttributeType" : "S",
+          },
+          {
+            "AttributeName" : "sort-key",
+            "AttributeType" : "S",
+          },
+        ],
+        "KeySchema" : [
+          {
+            "AttributeName" : "partition-key",
+            "KeyType" : "HASH",
+          },
+          {
+            "AttributeName" : "sort-key",
+            "KeyType" : "RANGE",
+          },
+        ],
+        "ProvisionedThroughput" : {
+          "ReadCapacityUnits" : "5",
+          "WriteCapacityUnits" : "5",
+        },
+        "TableName" : "aqfer-idsync3",
+      }
+    },
+    "VPC" : {
+      "Type" : "AWS::EC2::VPC",
+      "Properties" : {
+        "CidrBlock" : "10.0.0.0/16",
+      },
+    },
+    "PublicSubnet" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "CidrBlock" : "10.0.0.0/24",
+      },
+    },
+    "SecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+       "Properties" : {
+         "GroupName" : "launch-wizard-3",
+         "GroupDescription" : "Doing if for each instance, could create one apart to reuse",
+         "VpcId": { "Ref": "VPC" },
+         "SecurityGroupIngress" : [{
+           "IpProtocol" : "tcp",
+           "FromPort" : "22",
+           "ToPort" : "22",
+           "CidrIp" : "0.0.0.0/0",
+         }],
+         "SecurityGroupEgress" : [{
+           "IpProtocol" : "tcp",
+           "FromPort" : "80",
+           "ToPort" : "80",
+           "CidrIp" : "0.0.0.0/0",
+         }],
+       },
+    },
+    "EC2Instance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "ImageId" : "ami-55ef662f",
+        "InstanceType" : "t2.nano",
+        "KeyName" : "AqferKeyPair",
+        "NetworkInterfaces" : [{
+          "DeviceIndex" : "0",
+          "AssociatePublicIpAddress" : "true",
+          "DeleteOnTermination" : "true",
+          "SubnetId" : { "Ref" : "PublicSubnet" },
+          "GroupSet" : [{ "Ref" : "SecurityGroup" }],
+        }],
+        "BlockDeviceMappings" : [{
+          "DeviceName" : "/dev/xvda",
+          "Ebs": {
+            "VolumeType": "gp2",
+            "DeleteOnTermination": true,
+            "VolumeSize": 8,
+          },
+        }],
+      }
+    }
+  },
+}
