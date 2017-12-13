@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # set -e
 
-VERSION=2
+VERSION=3
 REGION=us-east-1
 AWS_ACCOUNT=545654232789
-GIT_TOKEN='c632b5992504cfcc2e3c950cc140d5636c052765'
+GIT_TOKEN=`cat github_token.txt`
 
 ROOT_NAME=aqfer
 APP_NAME=$ROOT_NAME$VERSION

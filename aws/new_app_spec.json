@@ -35,7 +35,7 @@ Resources:
         EnvironmentVariables: []
         Image: aws/codebuild/golang:1.7.3
         Type: LINUX_CONTAINER
-      Name: aqferCodeBuild2
+      Name: aqferCodeBuild3
       ServiceRole:
         Fn::GetAtt:
         - CodeBuildServiceRole
@@ -58,7 +58,7 @@ Resources:
           - ''
           - - 'arn:aws:s3:::'
             - Ref: PipelineBucket
-            - /aqferPipeline2/RawCode/*
+            - /aqferPipeline3/RawCode/*
         Type: S3
       Tags: []
       TimeoutInMinutes: 60
@@ -82,8 +82,8 @@ Resources:
             - logs:PutLogEvents
             Effect: Allow
             Resource:
-            - arn:aws:logs:us-east-1:545654232789:log-group:/aws/codebuild/aqferCodeBuild2
-            - arn:aws:logs:us-east-1:545654232789:log-group:/aws/codebuild/aqferCodeBuild2:*
+            - arn:aws:logs:us-east-1:545654232789:log-group:/aws/codebuild/aqferCodeBuild3
+            - arn:aws:logs:us-east-1:545654232789:log-group:/aws/codebuild/aqferCodeBuild3:*
           - Action:
             - s3:PutObject
             - s3:GetObject
@@ -100,7 +100,7 @@ Resources:
               - ''
               - - 'arn:aws:s3:::'
                 - Ref: PipelineBucket
-                - /aqferPipeline2/RawCode/*
+                - /aqferPipeline3/RawCode/*
           - Action:
             - s3:PutObject
             Effect: Allow
@@ -111,7 +111,7 @@ Resources:
                 - Ref: PipelineBucket
                 - /*
         PolicyName: CodeBuildPolicy
-      RoleName: aqferCodeBuildRole2
+      RoleName: aqferCodeBuildRole3
     Type: AWS::IAM::Role
   CodePipeline:
     Properties:
@@ -119,7 +119,7 @@ Resources:
         Location:
           Ref: PipelineBucket
         Type: S3
-      Name: aqferPipeline2
+      Name: aqferPipeline3
       RoleArn:
         Fn::GetAtt:
         - CodePipelineRole
@@ -133,7 +133,7 @@ Resources:
             Version: '1'
           Configuration:
             Branch: master
-            OAuthToken: c632b5992504cfcc2e3c950cc140d5636c052765
+            OAuthToken: bfc246a4ec215d604f8235d60dbfc7b24a5450a5
             Owner: fellou89
             Repo: aqferwebserver
           InputArtifacts: []
@@ -149,7 +149,7 @@ Resources:
             Provider: CodeBuild
             Version: '1'
           Configuration:
-            ProjectName: aqferCodeBuild2
+            ProjectName: aqferCodeBuild3
           InputArtifacts:
           - Name: RawCode
           Name:
@@ -253,7 +253,7 @@ Resources:
             Resource: '*'
           Version: '2012-10-17'
         PolicyName: CodePipelinePolicy
-      RoleName: aqferCodepipelineRole2
+      RoleName: aqferCodepipelineRole3
     Type: AWS::IAM::Role
   DynamoDBTable:
     Properties:
@@ -270,7 +270,7 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: '5'
         WriteCapacityUnits: '5'
-      TableName: aqfer-idsync2
+      TableName: aqfer-idsync3
     Type: AWS::DynamoDB::Table
   EC2Instance:
     Properties:
@@ -294,7 +294,7 @@ Resources:
     Type: AWS::EC2::Instance
   PipelineBucket:
     Properties:
-      BucketName: aqfer-cloudformation2
+      BucketName: aqfer-cloudformation3
       VersioningConfiguration:
         Status: Enabled
       WebsiteConfiguration:
@@ -310,7 +310,7 @@ Resources:
   SecurityGroup:
     Properties:
       GroupDescription: Doing if for each instance, could create one apart to reuse
-      GroupName: launch-wizard-2
+      GroupName: launch-wizard-3
       SecurityGroupEgress:
       - CidrIp: 0.0.0.0/0
         FromPort: '80'

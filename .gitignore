@@ -1,3 +1,4 @@
 log/*
 tmp/*
 .secrets.yml
+aws/github_token.txt

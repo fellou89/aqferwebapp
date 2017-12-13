@@ -6,7 +6,7 @@
     "PipelineBucket": {
       "Type" : "AWS::S3::Bucket",
       "Properties" : {
-        "BucketName" : "aqfer-cloudformation2",
+        "BucketName" : "aqfer-cloudformation3",
         "VersioningConfiguration" : {
           "Status" : "Enabled"
         },
@@ -60,7 +60,7 @@
           "ReadCapacityUnits" : "5",
           "WriteCapacityUnits" : "5",
         },
-        "TableName" : "aqfer-idsync2",
+        "TableName" : "aqfer-idsync3",
       }
     },
 
@@ -80,7 +80,7 @@
     "SecurityGroup" : {
       "Type" : "AWS::EC2::SecurityGroup",
        "Properties" : {
-         "GroupName" : "launch-wizard-2",
+         "GroupName" : "launch-wizard-3",
          "GroupDescription" : "Doing if for each instance, could create one apart to reuse",
          "VpcId": { "Ref": "VPC" },
          "SecurityGroupIngress" : [{
@@ -124,7 +124,7 @@
     "CodeBuildServiceRole" : {
       "Type" : "AWS::IAM::Role",
       "Properties" : {
-        "RoleName" : "aqferCodeBuildRole2",
+        "RoleName" : "aqferCodeBuildRole3",
         "AssumeRolePolicyDocument": {
           "Version" : "2012-10-17",
           "Statement" : [{
@@ -140,8 +140,8 @@
             "Statement": [{
               "Effect": "Allow",
               "Resource": [
-                "arn:aws:logs:us-east-1:545654232789:log-group:/aws/codebuild/aqferCodeBuild2",
-                "arn:aws:logs:us-east-1:545654232789:log-group:/aws/codebuild/aqferCodeBuild2:*"
+                "arn:aws:logs:us-east-1:545654232789:log-group:/aws/codebuild/aqferCodeBuild3",
+                "arn:aws:logs:us-east-1:545654232789:log-group:/aws/codebuild/aqferCodeBuild3:*"
               ],
               "Action": [
                 "logs:CreateLogGroup",
@@ -160,7 +160,7 @@
             },
             {
               "Effect": "Allow",
-              "Resource": { "Fn::Join" : ["", ["arn:aws:s3:::", !Ref PipelineBucket, "/aqferPipeline2/RawCode/*"]] },
+              "Resource": { "Fn::Join" : ["", ["arn:aws:s3:::", !Ref PipelineBucket, "/aqferPipeline3/RawCode/*"]] },
               "Action": [
                 "s3:GetObject",
                 "s3:GetObjectVersion"
@@ -180,7 +180,7 @@
     "CodeBuild" : {
       "Type": "AWS::CodeBuild::Project",
       "Properties": {
-        "Name": "aqferCodeBuild2",
+        "Name": "aqferCodeBuild3",
         "Description": "Code build project to prepare production caddy binary",
         "ServiceRole": !GetAtt CodeBuildServiceRole.Arn, 
         "Artifacts": {
@@ -208,7 +208,7 @@
               ]
             ]
           },
-          "Location" : { "Fn::Join" : ["", ["arn:aws:s3:::", !Ref PipelineBucket, "/aqferPipeline2/RawCode/*"]] },
+          "Location" : { "Fn::Join" : ["", ["arn:aws:s3:::", !Ref PipelineBucket, "/aqferPipeline3/RawCode/*"]] },
           "Type" : "S3"
         },
         "TimeoutInMinutes": 60,
@@ -218,7 +218,7 @@
     "CodePipelineRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
-        "RoleName": "aqferCodepipelineRole2",
+        "RoleName": "aqferCodepipelineRole3",
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
           "Statement": [
@@ -352,7 +352,7 @@
     "CodePipeline" : {
       "Type" : "AWS::CodePipeline::Pipeline",
       "Properties" : {
-        "Name" : "aqferPipeline2",
+        "Name" : "aqferPipeline3",
         "RoleArn": !GetAtt CodePipelineRole.Arn, 
         "ArtifactStore" : {
           "Type": "S3",
@@ -374,7 +374,7 @@
               "Owner": "fellou89",
               "Repo": "aqferwebserver",
               "Branch": "master",
-              "OAuthToken": "c632b5992504cfcc2e3c950cc140d5636c052765"
+              "OAuthToken": "bfc246a4ec215d604f8235d60dbfc7b24a5450a5"
             },
             "RunOrder": 1
           }]
@@ -392,7 +392,7 @@
             },
             "OutputArtifacts": [{ "Name": "CaddyZip" }],
             "Configuration": {
-              "ProjectName" : "aqferCodeBuild2",
+              "ProjectName" : "aqferCodeBuild3",
             },
             "RunOrder": 1
           }]
