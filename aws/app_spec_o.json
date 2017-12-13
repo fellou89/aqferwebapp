@@ -97,29 +97,7 @@
          }],
        },
     },
-    "EC2Instance" : {
-      "Type" : "AWS::EC2::Instance",
-      "Properties" : {
-        "ImageId" : "AMI_SUB",
-        "InstanceType" : "t2.nano",
-        "KeyName" : "KEY_NAME_SUB",
-        "NetworkInterfaces" : [{
-          "DeviceIndex" : "0",
-          "AssociatePublicIpAddress" : "true",
-          "DeleteOnTermination" : "true",
-          "SubnetId" : { "Ref" : "PublicSubnet" },
-          "GroupSet" : [{ "Ref" : "SecurityGroup" }],
-        }],
-        "BlockDeviceMappings" : [{
-          "DeviceName" : "/dev/xvda",
-          "Ebs": {
-            "VolumeType": "gp2",
-            "DeleteOnTermination": true,
-            "VolumeSize": 8,
-          },
-        }],
-      }
-    },
+    
 
     "CodeBuildServiceRole" : {
       "Type" : "AWS::IAM::Role",
