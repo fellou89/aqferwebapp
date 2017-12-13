@@ -6,7 +6,7 @@
     "PipelineBucket": {
       "Type" : "AWS::S3::Bucket",
       "Properties" : {
-        "BucketName" : "aqfer-cloudformation4",
+        "BucketName" : "aqfer-cloudformation1",
         "VersioningConfiguration" : {
           "Status" : "Enabled"
         },
@@ -60,7 +60,7 @@
           "ReadCapacityUnits" : "5",
           "WriteCapacityUnits" : "5",
         },
-        "TableName" : "aqfer-idsync4",
+        "TableName" : "aqfer-idsync1",
       }
     },
 
@@ -80,7 +80,7 @@
     "SecurityGroup" : {
       "Type" : "AWS::EC2::SecurityGroup",
        "Properties" : {
-         "GroupName" : "launch-wizard-4",
+         "GroupName" : "launch-wizard-1",
          "GroupDescription" : "Doing if for each instance, could create one apart to reuse",
          "VpcId": { "Ref": "VPC" },
          "SecurityGroupIngress" : [{
@@ -124,7 +124,7 @@
     "CodeBuildServiceRole" : {
       "Type" : "AWS::IAM::Role",
       "Properties" : {
-        "RoleName" : "aqferCodeBuildRole4",
+        "RoleName" : "aqferCodeBuildRole1",
         "AssumeRolePolicyDocument": {
           "Version" : "2012-10-17",
           "Statement" : [{
@@ -140,8 +140,8 @@
             "Statement": [{
               "Effect": "Allow",
               "Resource": [
-                "arn:aws:logs:us-east-1:545654232789:log-group:/aws/codebuild/aqferCodeBuild4",
-                "arn:aws:logs:us-east-1:545654232789:log-group:/aws/codebuild/aqferCodeBuild4:*"
+                "arn:aws:logs:us-east-1:545654232789:log-group:/aws/codebuild/aqferCodeBuild1",
+                "arn:aws:logs:us-east-1:545654232789:log-group:/aws/codebuild/aqferCodeBuild1:*"
               ],
               "Action": [
                 "logs:CreateLogGroup",
@@ -160,7 +160,7 @@
             },
             {
               "Effect": "Allow",
-              "Resource": { "Fn::Join" : ["", ["arn:aws:s3:::", !Ref PipelineBucket, "/aqferPipeline4/RawCode/*"]] },
+              "Resource": { "Fn::Join" : ["", ["arn:aws:s3:::", !Ref PipelineBucket, "/aqferPipeline1/RawCode/*"]] },
               "Action": [
                 "s3:GetObject",
                 "s3:GetObjectVersion"
@@ -180,7 +180,7 @@
     "CodeBuild" : {
       "Type": "AWS::CodeBuild::Project",
       "Properties": {
-        "Name": "aqferCodeBuild4",
+        "Name": "aqferCodeBuild1",
         "Description": "Code build project to prepare production caddy binary",
         "ServiceRole": !GetAtt CodeBuildServiceRole.Arn, 
         "Artifacts": {
@@ -204,11 +204,11 @@
                 "phases:",
                 "  build:",
                 "    commands:",
-                "      - ls -la > ls.txt"
+                "      - ls -la"
               ]
             ]
           },
-          "Location" : { "Fn::Join" : ["", ["arn:aws:s3:::", !Ref PipelineBucket, "/aqferPipeline4/RawCode/*"]] },
+          "Location" : { "Fn::Join" : ["", ["arn:aws:s3:::", !Ref PipelineBucket, "/aqferPipeline1/RawCode/*"]] },
           "Type" : "S3"
         },
         "TimeoutInMinutes": 60,
@@ -218,7 +218,7 @@
     "CodePipelineRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
-        "RoleName": "aqferCodepipelineRole4",
+        "RoleName": "aqferCodepipelineRole1",
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
           "Statement": [
@@ -352,7 +352,7 @@
     "CodePipeline" : {
       "Type" : "AWS::CodePipeline::Pipeline",
       "Properties" : {
-        "Name" : "aqferPipeline4",
+        "Name" : "aqferPipeline1",
         "RoleArn": !GetAtt CodePipelineRole.Arn, 
         "ArtifactStore" : {
           "Type": "S3",
@@ -374,7 +374,7 @@
               "Owner": "fellou89",
               "Repo": "aqferwebserver",
               "Branch": "master",
-              "OAuthToken": "8a4d51eb6c6f1579546232a42c70d644c74348f4"
+              "OAuthToken": "56b1013ac2746e22f3a21becc06e5364efa19c3f"
             },
             "RunOrder": 1
           }]
@@ -392,7 +392,7 @@
             },
             "OutputArtifacts": [{ "Name": "CaddyZip" }],
             "Configuration": {
-              "ProjectName" : "aqferCodeBuild4",
+              "ProjectName" : "aqferCodeBuild1",
             },
             "RunOrder": 1
           }]
