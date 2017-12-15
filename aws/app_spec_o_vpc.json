@@ -64,11 +64,58 @@
       }
     },
 
+    "VPC" : {
+      "Type" : "AWS::EC2::VPC",
+      "Properties" : {
+        "CidrBlock" : "10.0.0.0/16",
+      },
+    },
+    "InternetGateway" : {
+      "Type" : "AWS::EC2::InternetGateway",
+    },
+    "VPCGatewayAttachment" : {
+      "Type" : "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId" : !Ref VPC,
+        "InternetGatewayId" : !Ref InternetGateway
+      },
+    },
+    "PublicRoute" : {
+      "Type" : "AWS::EC2::Route",
+      "DependsOn" : "VPCGatewayAttachment",
+      "Properties" : {
+        "RouteTableId" : !Ref PublicRouteTable,
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "GatewayId" : !Ref InternetGateway
+      },
+    },
+    "PublicRouteTable" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId" : !Ref VPC,
+      },
+    },
+    "PublicSubnet" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : !Ref VPC,
+        "CidrBlock" : "10.0.0.0/24",
+        "MapPublicIpOnLaunch" : "true"
+      },
+    },
+    "PublicSubnetRouteTableAssociation" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : !Ref PublicSubnet,
+        "RouteTableId" : !Ref PublicRouteTable
+      },
+    },
     "SecurityGroup" : {
       "Type" : "AWS::EC2::SecurityGroup",
        "Properties" : {
          "GroupName" : "SECURITY_GROUP_SUB",
          "GroupDescription" : "Doing if for each instance, could create one apart to reuse",
+         "VpcId": !Ref VPC,
          "SecurityGroupIngress" : [{
            "IpProtocol" : "tcp",
            "FromPort" : "80",
@@ -81,7 +128,19 @@
             "ToPort": "22",
             "CidrIp" : "0.0.0.0/0",
          }],
-       }
+         "SecurityGroupEgress" : [{
+           "IpProtocol" : "tcp",
+           "FromPort" : "80",
+           "ToPort" : "80",
+           "CidrIp" : "0.0.0.0/0",
+         },
+         {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp" : "0.0.0.0/0"
+         }],
+       },
     },
     "EC2InstanceRole" : {
       "Type" : "AWS::IAM::Role",
@@ -105,7 +164,7 @@
                 "s3:Get*",
                 "s3:List*"
               ],
-              "Resource": "*"
+              "Resource" : { "Fn::Join" : ["", ["arn:aws:s3:::", !Ref PipelineBucket, "/*" ]] }
             },
             {
               "Effect": "Allow",
@@ -154,7 +213,13 @@
         "ImageId" : "AMI_SUB",
         "InstanceType" : "t2.nano",
         "KeyName" : "KEY_NAME_SUB",
-        "SecurityGroupIds" : [ !Ref  SecurityGroup ],
+        "NetworkInterfaces" : [{
+          "DeviceIndex" : "0",
+          "AssociatePublicIpAddress" : "true",
+          "DeleteOnTermination" : "true",
+          "SubnetId" : !Ref  PublicSubnet,
+          "GroupSet" : [ !Ref  SecurityGroup ],
+        }],
         "BlockDeviceMappings" : [{
           "DeviceName" : "/dev/xvda",
           "Ebs": {
@@ -256,8 +321,6 @@
                 "  build:",
                 "    commands:",
                 "      - pwd",
-                "      - mkdir caddy_bin",
-                "      - mv appspec.yml caddy_bin/appspec.yml",
                 "      - export GOLANG_VERSION=\"1.8.2\"",
                 "      - export GOLANG_DOWNLOAD_SHA256=\"5477d6c9a4f96fa120847fafa88319d7b56b5d5068e41c3587eebe248b939be7\"",
                 "      - rm -rvf /usr/local/go/",
@@ -269,6 +332,7 @@
                 "      - cd /go/src/github.com/mholt/caddy/caddy",
                 "      - go get github.com/caddyserver/builds",
                 "      - go run build.go",
+                "      - mkdir $OLDPWD/caddy_bin",
                 "      - mv ./caddy $OLDPWD/caddy_bin/caddy",
                 "      - cd $OLDPWD",
                 "artifacts:",

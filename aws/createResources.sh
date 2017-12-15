@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # set -e
 
-VERSION=1
+VERSION=2
 REGION=us-east-1
 AWS_ACCOUNT=545654232789
 GIT_TOKEN=`cat github_token.txt`
@@ -9,10 +9,14 @@ GIT_TOKEN=`cat github_token.txt`
 ROOT_NAME=aqfer
 APP_NAME=$ROOT_NAME$VERSION
 TABLE_NAME=aqfer-idsync$VERSION
+EC2_TAG_KEY=Key$APP_NAME
+EC2_TAG_VAL=Value$APP_NAME
+EC2_INSTANCE_ROLE=$ROOT_NAME'EC2InstanceRole'$VERSION
 
 AMI=ami-55ef662f
 KEYPAIR=AqferKeyPair
 SECURITY_GROUP=launch-wizard-$VERSION
+USER_DATA=`cat user_data.txt`
 
 # Bucket name must be all lowercase, and start/end with lowecase letter or number
 ARTIFACTS_BUCKET=cloudformation-art
@@ -21,6 +25,9 @@ PIPELINE_NAME=$ROOT_NAME'Pipeline'$VERSION
 CODE_PIPELINE_ROLE=$ROOT_NAME'CodepipelineRole'$VERSION
 CODE_BUILD_ROLE=$ROOT_NAME'CodeBuildRole'$VERSION
 CODE_BUILD_NAME=$ROOT_NAME'CodeBuild'$VERSION
+CODE_DEPLOY_APP=$ROOT_NAME'CodeDeploy'$VERSION
+CODE_DEPLOY_ROLE=$ROOT_NAME'CodeDeployRole'$VERSION
+CODE_DEPLOY_GROUP=$ROOT_NAME'CodeDeployGroup'$VERSION
 PIPELINE_BUCKET=$ROOT_NAME-cloudformation$VERSION
 
 # Create key pair
@@ -45,7 +52,14 @@ cat /tmp/app_spec8.json | sed 's/CODE_PIPELINE_ROLE_SUB/'$CODE_PIPELINE_ROLE'/' 
 cat /tmp/app_spec9.json | sed 's/PIPELINE_NAME_SUB/'$PIPELINE_NAME'/' > /tmp/app_spec10.json
 cat /tmp/app_spec10.json | sed 's/GIT_TOKEN_SUB/'$GIT_TOKEN'/' > /tmp/app_spec11.json 
 cat /tmp/app_spec11.json | sed 's/AWS_ACCOUNT_SUB/'$AWS_ACCOUNT'/' > /tmp/app_spec12.json 
-cat /tmp/app_spec12.json | sed 's/TABLE_NAME_SUB/'$TABLE_NAME'/' > app_spec.json
+cat /tmp/app_spec12.json | sed 's/EC2_TAG_KEY_SUB/'$EC2_TAG_KEY'/' > /tmp/app_spec13.json 
+cat /tmp/app_spec13.json | sed 's/EC2_TAG_VAL_SUB/'$EC2_TAG_VAL'/' > /tmp/app_spec14.json 
+cat /tmp/app_spec14.json | sed 's/CODE_DEPLOY_APP_SUB/'$CODE_DEPLOY_APP'/' > /tmp/app_spec15.json
+cat /tmp/app_spec15.json | sed 's/CODE_DEPLOY_GROUP_SUB/'$CODE_DEPLOY_GROUP'/' > /tmp/app_spec16.json
+cat /tmp/app_spec16.json | sed 's/CODE_DEPLOY_ROLE_SUB/'$CODE_DEPLOY_ROLE'/' > /tmp/app_spec17.json
+cat /tmp/app_spec17.json | sed 's/EC2_INSTANCE_ROLE_SUB/'$EC2_INSTANCE_ROLE'/' > /tmp/app_spec18.json
+cat /tmp/app_spec18.json | sed 's/USER_DATA_SUB/'$USER_DATA'/' > /tmp/app_spec19.json
+cat /tmp/app_spec19.json | sed 's/TABLE_NAME_SUB/'$TABLE_NAME'/' > app_spec.json
 
 # Launch cloudformation stack
 aws cloudformation package --template-file app_spec.json --output-template-file new_app_spec.json --s3-bucket $ARTIFACTS_BUCKET
