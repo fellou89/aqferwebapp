@@ -16,7 +16,6 @@ EC2_INSTANCE_ROLE=$ROOT_NAME'EC2InstanceRole'$VERSION
 AMI=ami-55ef662f
 KEYPAIR=AqferKeyPair
 SECURITY_GROUP=launch-wizard-$VERSION
-USER_DATA=`cat user_data.txt`
 
 # Bucket name must be all lowercase, and start/end with lowecase letter or number
 ARTIFACTS_BUCKET=cloudformation-art
@@ -58,8 +57,7 @@ cat /tmp/app_spec14.json | sed 's/CODE_DEPLOY_APP_SUB/'$CODE_DEPLOY_APP'/' > /tm
 cat /tmp/app_spec15.json | sed 's/CODE_DEPLOY_GROUP_SUB/'$CODE_DEPLOY_GROUP'/' > /tmp/app_spec16.json
 cat /tmp/app_spec16.json | sed 's/CODE_DEPLOY_ROLE_SUB/'$CODE_DEPLOY_ROLE'/' > /tmp/app_spec17.json
 cat /tmp/app_spec17.json | sed 's/EC2_INSTANCE_ROLE_SUB/'$EC2_INSTANCE_ROLE'/' > /tmp/app_spec18.json
-cat /tmp/app_spec18.json | sed 's/USER_DATA_SUB/'$USER_DATA'/' > /tmp/app_spec19.json
-cat /tmp/app_spec19.json | sed 's/TABLE_NAME_SUB/'$TABLE_NAME'/' > app_spec.json
+cat /tmp/app_spec18.json | sed 's/TABLE_NAME_SUB/'$TABLE_NAME'/' > app_spec.json
 
 # Launch cloudformation stack
 aws cloudformation package --template-file app_spec.json --output-template-file new_app_spec.json --s3-bucket $ARTIFACTS_BUCKET

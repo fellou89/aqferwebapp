@@ -5,6 +5,7 @@
   "Resources": {
     "PipelineBucket": {
       "Type" : "AWS::S3::Bucket",
+      "DependsOn" : "EC2Instance",
       "Properties" : {
         "BucketName" : "PIPELINE_BUCKET_SUB",
         "VersioningConfiguration" : {
@@ -110,6 +111,17 @@
             {
               "Effect": "Allow",
               "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": [
+                "arn:aws:logs:us-east-1:AWS_ACCOUNT_SUB:log-group:*"
+              ],
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
                 "cloudformation:*",
                 "codedeploy:*",
                 "ec2:*",
@@ -155,6 +167,48 @@
         "InstanceType" : "t2.nano",
         "KeyName" : "KEY_NAME_SUB",
         "SecurityGroupIds" : [ !Ref  SecurityGroup ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": ["", [
+              "#!/bin/bash\n",
+
+              "function error_exit {\n",
+              "  /opt/aws/bin/cfn-signal -e 1 --reason \"$1\" --stack ", { "Ref" : "AWS::StackName" }, " --resource EC2Instance --region REGION_SUB\n",
+              "  exit 1\n",
+              "}\n",
+
+              "wget https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py",
+              " || error_exit 'Failed to download AWS Logs Agent.'\n",
+
+              "wget https://s3.amazonaws.com/aws-codedeploy-REGION_SUB/cloudwatch/codedeploy_logs.conf",
+              " || error_exit 'Failed to download CodeDeploy Logs conf.'\n",
+
+              "chmod +x ./awslogs-agent-setup.py\n",
+
+              "python awslogs-agent-setup.py -n -r REGION_SUB -c s3://aws-codedeploy-us-east-1/cloudwatch/awslogs.conf",
+              " || error_exit 'Failed run awslogs-agent-setup.py.'\n",
+
+              "mkdir -p /var/awslogs/etc/config\n",
+              "cp codedeploy_logs.conf /var/awslogs/etc/config/\n",
+              "service awslogs restart\n",
+
+              "yum update -y aws-cfn-bootstrap\n",
+              "yum install -y aws-cli\n",
+              "cd /home/ec2-user/\n",
+
+              "aws s3 cp 's3://aws-codedeploy-us-east-1/latest/codedeploy-agent.noarch.rpm' .",
+              " || error_exit 'Failed to download AWS CodeDeploy Agent.'\n",
+
+              "yum -y install codedeploy-agent.noarch.rpm",
+              " || error_exit 'Failed to install AWS CodeDeploy Agent.'\n",
+
+              "sudo /opt/aws/bin/cfn-init --stack ", { "Ref" : "AWS::StackName" }, " --resource EC2Instance --region REGION_SUB",
+              " || error_exit 'Failed to run cfn-init'\n",
+
+              "/opt/aws/bin/cfn-signal -e 0 --reason \"AWS CodeDeploy Agent setup complete.\" --stack ", { "Ref" : "AWS::StackName" }, " --resource EC2Instance --region REGION_SUB",
+            ]]
+          }
+        },
         "BlockDeviceMappings" : [{
           "DeviceName" : "/dev/xvda",
           "Ebs": {
@@ -168,7 +222,11 @@
           "Key" : "EC2_TAG_KEY_SUB",
           "Value" : "EC2_TAG_VAL_SUB"
         }],
-        "UserData" : "USER_DATA_SUB"
+      },
+      "CreationPolicy" : {
+        "ResourceSignal" : {
+          "Timeout" : "PT15M"
+        }
       },
     },
 
@@ -255,9 +313,6 @@
                 "phases:",
                 "  build:",
                 "    commands:",
-                "      - pwd",
-                "      - mkdir caddy_bin",
-                "      - mv appspec.yml caddy_bin/appspec.yml",
                 "      - export GOLANG_VERSION=\"1.8.2\"",
                 "      - export GOLANG_DOWNLOAD_SHA256=\"5477d6c9a4f96fa120847fafa88319d7b56b5d5068e41c3587eebe248b939be7\"",
                 "      - rm -rvf /usr/local/go/",
@@ -269,11 +324,12 @@
                 "      - cd /go/src/github.com/mholt/caddy/caddy",
                 "      - go get github.com/caddyserver/builds",
                 "      - go run build.go",
-                "      - mv ./caddy $OLDPWD/caddy_bin/caddy",
-                "      - cd $OLDPWD",
+                "      - cp /go/src/github.com/mholt/caddy/caddy/caddy ./",
+                "      - aws/appspec.yml ./",
                 "artifacts:",
                 "  files:",
-                "    - caddy_bin/*"
+                "    - caddy",
+                "    - appspec.yml"
               ]
             ]
           },
@@ -515,6 +571,7 @@
     },
     "CodePipeline" : {
       "Type" : "AWS::CodePipeline::Pipeline",
+      "DependsOn" : "PipelineBucket",
       "Properties" : {
         "Name" : "PIPELINE_NAME_SUB",
         "RoleArn": !GetAtt CodePipelineRole.Arn, 
