@@ -2,7 +2,7 @@ version: 0.0
 os: linux
 files:
   - source: caddy
-    destination: /usr/bin/caddy
+    destination: /usr/bin
 hooks:
   ApplicationStart:
     - location: appstart.sh
