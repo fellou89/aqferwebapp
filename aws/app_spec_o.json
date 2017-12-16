@@ -324,12 +324,15 @@
                 "      - cd /go/src/github.com/mholt/caddy/caddy",
                 "      - go get github.com/caddyserver/builds",
                 "      - go run build.go",
+                "      - cd $OLDPWD",
                 "      - cp /go/src/github.com/mholt/caddy/caddy/caddy ./",
                 "      - cp aws/appspec.yml ./",
+                "      - cp aws/appstart.sh ./",
                 "artifacts:",
                 "  files:",
                 "    - caddy",
-                "    - appspec.yml"
+                "    - appspec.yml",
+                "    - appstart.sh"
               ]
             ]
           },

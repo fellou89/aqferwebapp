@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # set -e
 
-VERSION=2
+VERSION=5
 REGION=us-east-1
 AWS_ACCOUNT=545654232789
 GIT_TOKEN=`cat github_token.txt`

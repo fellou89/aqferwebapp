@@ -1,5 +1,9 @@
 version: 0.0
 os: linux
 files:
-  - source: source
-    destination: /webapps/myApp
+  - source: caddy
+    destination: /usr/bin/caddy
+hooks:
+  ApplicationStart:
+    - location: appstart.sh
+
