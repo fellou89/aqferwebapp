@@ -325,7 +325,7 @@
                 "      - go get github.com/caddyserver/builds",
                 "      - go run build.go",
                 "      - cp /go/src/github.com/mholt/caddy/caddy/caddy ./",
-                "      - aws/appspec.yml ./",
+                "      - cp aws/appspec.yml ./",
                 "artifacts:",
                 "  files:",
                 "    - caddy",
