@@ -1,7 +1,7 @@
 version: 0.0
 os: linux
 files:
-  - source: caddy
+  - source: ./caddy
     destination: /usr/bin
 hooks:
   ApplicationStart:
