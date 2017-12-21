@@ -1,0 +1,644 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Resources": {
+    "PipelineBucket": {
+      "Type" : "AWS::S3::Bucket",
+      "DependsOn" : "EC2Instance",
+      "Properties" : {
+        "BucketName" : "PIPELINE_BUCKET_SUB",
+        "VersioningConfiguration" : {
+          "Status" : "Enabled"
+        },
+        "WebsiteConfiguration" : {
+          "ErrorDocument" : "index.html",
+          "IndexDocument" : "index.html",
+        }
+      }
+    },
+    "BucketPolicy" : {
+      "Type" : "AWS::S3::BucketPolicy",
+      "Properties" : {
+        "Bucket" : !Ref PipelineBucket,
+        "PolicyDocument" : {
+          "Version" : "2012-10-17",
+          "Statement" : [{
+            "Sid" : "PublicReadForGetBucketObjects",
+            "Effect" : "Allow",
+            "Principal" : "*",
+            "Action" : ["s3:GetObject"],
+            "Resource" : { "Fn::Join" : ["", ["arn:aws:s3:::", !Ref PipelineBucket, "/*" ]] }
+          }]
+        }
+      }
+    },
+    
+    "DynamoDBTable" : {
+      "Type" : "AWS::DynamoDB::Table",
+      "Properties" : {
+        "AttributeDefinitions" : [
+          {
+            "AttributeName" : "partition-key",
+            "AttributeType" : "S",
+          },
+          {
+            "AttributeName" : "sort-key",
+            "AttributeType" : "S",
+          },
+        ],
+        "KeySchema" : [
+          {
+            "AttributeName" : "partition-key",
+            "KeyType" : "HASH",
+          },
+          {
+            "AttributeName" : "sort-key",
+            "KeyType" : "RANGE",
+          },
+        ],
+        "ProvisionedThroughput" : {
+          "ReadCapacityUnits" : "5",
+          "WriteCapacityUnits" : "5",
+        },
+        "TableName" : "TABLE_NAME_SUB",
+      }
+    },
+
+    "SecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+       "Properties" : {
+         "GroupName" : "SECURITY_GROUP_SUB",
+         "GroupDescription" : "Doing if for each instance, could create one apart to reuse",
+         "SecurityGroupIngress" : [{
+           "IpProtocol" : "tcp",
+           "FromPort" : "80",
+           "ToPort" : "80",
+           "CidrIp" : "0.0.0.0/0",
+         },
+         {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp" : "0.0.0.0/0",
+         }],
+       }
+    },
+    "EC2InstanceRole" : {
+      "Type" : "AWS::IAM::Role",
+      "Properties" : {
+        "RoleName" : "EC2_INSTANCE_ROLE_SUB",
+        "AssumeRolePolicyDocument": {
+          "Version" : "2012-10-17",
+          "Statement" : [{
+            "Effect" : "Allow",
+            "Principal" : { "Service": "ec2.amazonaws.com" },
+            "Action" : "sts:AssumeRole"
+          }] 
+        },
+        "Path" : "/",
+        "Policies" : [{
+          "PolicyName": "CodeDeployEC2Policy",
+          "PolicyDocument": {
+            "Statement": [{
+              "Effect": "Allow",
+              "Action": [
+                "s3:Get*",
+                "s3:List*"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": [
+                "arn:aws:logs:us-east-1:AWS_ACCOUNT_SUB:log-group:*"
+              ],
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "cloudformation:*",
+                "codedeploy:*",
+                "ec2:*",
+                "iam:AddRoleToInstanceProfile",
+                "iam:CreateInstanceProfile",
+                "iam:CreateRole",
+                "iam:DeleteInstanceProfile",
+                "iam:DeleteRole",
+                "iam:DeleteRolePolicy",
+                "iam:GetRole",
+                "iam:PassRole",
+                "iam:PutRolePolicy",
+                "iam:RemoveRoleFromInstanceProfile"
+              ],
+              "Resource": "*"
+            }]
+          }
+        }]
+      }
+    },    
+    "EC2InstanceProfile" : {
+      "Type" : "AWS::IAM::InstanceProfile",
+      "Properties" : {
+        "Roles" : [ !Ref EC2InstanceRole ]
+      },
+    },
+    "EC2Instance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "services": {
+            "sysvint": {
+              "codedeploy-agent": {
+                "enabled": "true",
+                "ensureRunning": "true"
+              }
+            }
+          }
+        }
+      },
+      "Properties" : {
+        "ImageId" : "AMI_SUB",
+        "InstanceType" : "t2.nano",
+        "KeyName" : "KEY_NAME_SUB",
+        "SecurityGroupIds" : [ !Ref  SecurityGroup ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": ["", [
+              "#!/bin/bash\n",
+
+              "function error_exit {\n",
+              "  /opt/aws/bin/cfn-signal -e 1 --reason \"$1\" --stack ", { "Ref" : "AWS::StackName" }, " --resource EC2Instance --region REGION_SUB\n",
+              "  exit 1\n",
+              "}\n",
+
+              "wget https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py",
+              " || error_exit 'Failed to download AWS Logs Agent.'\n",
+
+              "wget https://s3.amazonaws.com/aws-codedeploy-REGION_SUB/cloudwatch/codedeploy_logs.conf",
+              " || error_exit 'Failed to download CodeDeploy Logs conf.'\n",
+
+              "chmod +x ./awslogs-agent-setup.py\n",
+
+              "python awslogs-agent-setup.py -n -r REGION_SUB -c s3://aws-codedeploy-us-east-1/cloudwatch/awslogs.conf",
+              " || error_exit 'Failed run awslogs-agent-setup.py.'\n",
+
+              "mkdir -p /var/awslogs/etc/config\n",
+              "cp codedeploy_logs.conf /var/awslogs/etc/config/\n",
+              "service awslogs restart\n",
+
+              "yum update -y aws-cfn-bootstrap\n",
+              "yum install -y aws-cli\n",
+              "cd /home/ec2-user/\n",
+
+              "aws s3 cp 's3://aws-codedeploy-us-east-1/latest/codedeploy-agent.noarch.rpm' .",
+              " || error_exit 'Failed to download AWS CodeDeploy Agent.'\n",
+
+              "yum -y install codedeploy-agent.noarch.rpm",
+              " || error_exit 'Failed to install AWS CodeDeploy Agent.'\n",
+
+              "sudo /opt/aws/bin/cfn-init --stack ", { "Ref" : "AWS::StackName" }, " --resource EC2Instance --region REGION_SUB",
+              " || error_exit 'Failed to run cfn-init'\n",
+
+              "/opt/aws/bin/cfn-signal -e 0 --reason \"AWS CodeDeploy Agent setup complete.\" --stack ", { "Ref" : "AWS::StackName" }, " --resource EC2Instance --region REGION_SUB",
+            ]]
+          }
+        },
+        "BlockDeviceMappings" : [{
+          "DeviceName" : "/dev/xvda",
+          "Ebs": {
+            "VolumeType": "gp2",
+            "DeleteOnTermination": true,
+            "VolumeSize": 8,
+          },
+        }],
+        "IamInstanceProfile" : !Ref EC2InstanceProfile,
+        "Tags" : [{
+          "Key" : "EC2_TAG_KEY_SUB",
+          "Value" : "EC2_TAG_VAL_SUB"
+        }],
+      },
+      "CreationPolicy" : {
+        "ResourceSignal" : {
+          "Timeout" : "PT15M"
+        }
+      },
+    },
+
+    "CodeBuildServiceRole" : {
+      "Type" : "AWS::IAM::Role",
+      "Properties" : {
+        "RoleName" : "CODE_BUILD_ROLE_SUB",
+        "AssumeRolePolicyDocument": {
+          "Version" : "2012-10-17",
+          "Statement" : [{
+            "Effect" : "Allow",
+            "Principal" : { "Service": "codebuild.amazonaws.com" },
+            "Action" : "sts:AssumeRole"
+          }] 
+        },
+        "Path" : "/",
+        "Policies" : [{
+          "PolicyName": "CodeBuildPolicy",
+          "PolicyDocument": {
+            "Statement": [{
+              "Effect": "Allow",
+              "Resource": [
+                "arn:aws:logs:us-east-1:AWS_ACCOUNT_SUB:log-group:/aws/codebuild/CODE_BUILD_NAME_SUB",
+                "arn:aws:logs:us-east-1:AWS_ACCOUNT_SUB:log-group:/aws/codebuild/CODE_BUILD_NAME_SUB:*"
+              ],
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Resource": ["arn:aws:s3:::codepipeline-us-east-1-*"],
+              "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:GetObjectVersion"
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Resource": { "Fn::Join" : ["", ["arn:aws:s3:::", !Ref PipelineBucket, "/PIPELINE_NAME_SUB/RawCode/*"]] },
+              "Action": [
+                "s3:GetObject",
+                "s3:GetObjectVersion"
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Resource": { "Fn::Join" : ["", ["arn:aws:s3:::", !Ref PipelineBucket, "/*"]] },
+              "Action": [
+                "s3:PutObject",
+              ]
+            }]
+          }
+        }]
+      }
+    },
+    "CodeBuild" : {
+      "Type": "AWS::CodeBuild::Project",
+      "Properties": {
+        "Name": "CODE_BUILD_NAME_SUB",
+        "Description": "Code build project to prepare production caddy binary",
+        "ServiceRole": !GetAtt CodeBuildServiceRole.Arn, 
+        "Artifacts": {
+          "NamespaceType": "NONE", 
+          "Packaging": "NONE", 
+          "Type": "S3", 
+          "Location": !Ref PipelineBucket, 
+          "Name": "CaddyZip"
+        },
+        "Environment": {
+          "Type": "LINUX_CONTAINER", 
+          "ComputeType": "BUILD_GENERAL1_SMALL", 
+          "Image": "aws/codebuild/golang:1.7.3", 
+          "EnvironmentVariables": []
+        },
+        "Source" : {
+          "BuildSpec" : {
+            "Fn::Join": [
+              "\n", [
+                "version: 0.2\n",
+                "phases:",
+                "  build:",
+                "    commands:",
+                "      - export GOLANG_VERSION=\"1.8.2\"",
+                "      - export GOLANG_DOWNLOAD_SHA256=\"5477d6c9a4f96fa120847fafa88319d7b56b5d5068e41c3587eebe248b939be7\"",
+                "      - rm -rvf /usr/local/go/",
+                "      - wget \"https://storage.googleapis.com/golang/go$GOLANG_VERSION.linux-amd64.tar.gz\" -O /tmp/golang.tar.gz",
+                "      - echo \"$GOLANG_DOWNLOAD_SHA256 /tmp/golang.tar.gz\" | sha256sum -c -",
+                "      - tar -xzf /tmp/golang.tar.gz -C /usr/local",
+                "      - rm -fr /var/lib/apt/lists/* /tmp/* /var/tmp/*",
+                "      - go get github.com/mholt/caddy/caddy",
+                "      - cd /go/src/github.com/mholt/caddy/caddy",
+                "      - go get github.com/caddyserver/builds",
+                "      - go run build.go",
+                "      - cd $OLDPWD",
+                "      - cp /go/src/github.com/mholt/caddy/caddy/caddy ./",
+                "      - cp aws/appspec.yml ./",
+                "      - cp aws/appstart.sh ./",
+                "artifacts:",
+                "  files:",
+                "    - caddy",
+                "    - appspec.yml",
+                "    - appstart.sh"
+              ]
+            ]
+          },
+          "Location" : { "Fn::Join" : ["", ["arn:aws:s3:::", !Ref PipelineBucket, "/PIPELINE_NAME_SUB/RawCode/*"]] },
+          "Type" : "S3"
+        },
+        "TimeoutInMinutes": 60,
+        "Tags": []
+      }
+    },
+
+    "CodeDeployRole" : {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "CODE_DEPLOY_ROLE_SUB",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17", 
+          "Statement": [{
+            "Action": "sts:AssumeRole", 
+            "Principal": { "Service": "codedeploy.amazonaws.com" }, 
+            "Effect": "Allow", 
+            "Sid": ""
+          }]
+        }, 
+        "Path" : "/",
+        "Policies" : [{
+          "PolicyName" : "CodeDeployPolicy",
+          "PolicyDocument" : {
+            "Statement": [{
+              "Effect": "Allow",
+              "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:GetObjectVersion"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": [
+                "arn:aws:logs:us-east-1:AWS_ACCOUNT_SUB:log-group:/aws/codebuild/CODE_DEPLOY_APP_SUB",
+                "arn:aws:logs:us-east-1:AWS_ACCOUNT_SUB:log-group:/aws/codebuild/CODE_DEPLOY_APP_SUB:*"
+              ],
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "autoscaling:CompleteLifecycleAction",
+                "autoscaling:DeleteLifecycleHook",
+                "autoscaling:DescribeAutoScalingGroups",
+                "autoscaling:DescribeLifecycleHooks",
+                "autoscaling:PutLifecycleHook",
+                "autoscaling:RecordLifecycleActionHeartbeat",
+                "autoscaling:CreateAutoScalingGroup",
+                "autoscaling:UpdateAutoScalingGroup",
+                "autoscaling:EnableMetricsCollection",
+                "autoscaling:DescribeAutoScalingGroups",
+                "autoscaling:DescribePolicies",
+                "autoscaling:DescribeScheduledActions",
+                "autoscaling:DescribeNotificationConfigurations",
+                "autoscaling:DescribeLifecycleHooks",
+                "autoscaling:SuspendProcesses",
+                "autoscaling:ResumeProcesses",
+                "autoscaling:AttachLoadBalancers",
+                "autoscaling:PutScalingPolicy",
+                "autoscaling:PutScheduledUpdateGroupAction",
+                "autoscaling:PutNotificationConfiguration",
+                "autoscaling:PutLifecycleHook",
+                "autoscaling:DescribeScalingActivities",
+                "autoscaling:DeleteAutoScalingGroup",
+                "ec2:DescribeInstances",
+                "ec2:DescribeInstanceStatus",
+                "ec2:TerminateInstances",
+                "tag:GetTags",
+                "tag:GetResources",
+                "sns:Publish",
+                "cloudwatch:DescribeAlarms",
+                "cloudwatch:PutMetricAlarm",
+                "elasticloadbalancing:DescribeLoadBalancers",
+                "elasticloadbalancing:DescribeInstanceHealth",
+                "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
+                "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+                "elasticloadbalancing:DescribeTargetGroups",
+                "elasticloadbalancing:DescribeTargetHealth",
+                "elasticloadbalancing:RegisterTargets",
+                "elasticloadbalancing:DeregisterTargets"
+              ],
+              "Resource": "*"
+            }],
+            "Version": "2012-10-17"
+          }
+        }]
+      }
+    },
+    "CodeDeployGroup" : {
+      "Type" : "AWS::CodeDeploy::DeploymentGroup",
+      "Properties" : {
+        "ApplicationName" : !Ref CodeDeploy,
+        "AutoRollbackConfiguration" : { "Enabled": false },
+        "DeploymentConfigName" : "CodeDeployDefault.OneAtATime",
+        "DeploymentGroupName" : "CODE_DEPLOY_GROUP_SUB",
+        "DeploymentStyle" : {
+          "DeploymentType": "IN_PLACE", 
+          "DeploymentOption": "WITHOUT_TRAFFIC_CONTROL"
+        },
+        "Ec2TagFilters": [{
+          "Type": "KEY_AND_VALUE", 
+          "Key": "EC2_TAG_KEY_SUB",
+          "Value": "EC2_TAG_VAL_SUB"
+        }], 
+        "ServiceRoleArn" : !GetAtt CodeDeployRole.Arn,
+      }
+    },
+    "CodeDeploy" : {
+      "Type" : "AWS::CodeDeploy::Application",
+      "Properties" : {
+        "ApplicationName" : "CODE_DEPLOY_APP_SUB",
+        "ComputePlatform" : "Server",
+      }
+    },
+
+    "CodePipelineRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "CODE_PIPELINE_ROLE_SUB",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Sid": "",
+            "Effect": "Allow",
+            "Principal": { "Service": "codepipeline.amazonaws.com" },
+            "Action": "sts:AssumeRole"
+          }]
+        },
+        "Path": "/",
+        "Policies": [{
+          "PolicyName": "CodePipelinePolicy",
+          "PolicyDocument": {
+            "Statement": [
+              {
+                "Action": [
+                  "s3:GetObject",
+                  "s3:GetObjectVersion",
+                  "s3:GetBucketVersioning"
+                ],
+                "Resource": "*",
+                "Effect": "Allow"
+              },
+              {
+                "Action": [
+                  "s3:PutObject"
+                ],
+                "Resource": [
+                  "arn:aws:s3:::codepipeline*",
+                  "arn:aws:s3:::elasticbeanstalk*"
+                ],
+                "Effect": "Allow"
+              },
+              {
+                "Action": [
+                  "codecommit:CancelUploadArchive",
+                  "codecommit:GetBranch",
+                  "codecommit:GetCommit",
+                  "codecommit:GetUploadArchiveStatus",
+                  "codecommit:UploadArchive"
+                ],
+                "Resource": "*",
+                "Effect": "Allow"
+              },
+              {
+                "Action": [
+                  "codedeploy:CreateDeployment",
+                  "codedeploy:GetApplicationRevision",
+                  "codedeploy:GetDeployment",
+                  "codedeploy:GetDeploymentConfig",
+                  "codedeploy:RegisterApplicationRevision"
+                ],
+                "Resource": "*",
+                "Effect": "Allow"
+              },
+              {
+                "Action": [
+                  "elasticbeanstalk:*",
+                  "ec2:*",
+                  "elasticloadbalancing:*",
+                  "autoscaling:*",
+                  "cloudwatch:*",
+                  "s3:*",
+                  "sns:*",
+                  "cloudformation:*",
+                  "rds:*",
+                  "sqs:*",
+                  "ecs:*",
+                  "iam:PassRole"
+                ],
+                "Resource": "*",
+                "Effect": "Allow"
+              },
+              {
+                "Action": [
+                  "lambda:InvokeFunction",
+                  "lambda:ListFunctions"
+                ],
+                "Resource": "*",
+                "Effect": "Allow"
+              },
+              {
+                "Action": [
+                  "opsworks:CreateDeployment",
+                  "opsworks:DescribeApps",
+                  "opsworks:DescribeCommands",
+                  "opsworks:DescribeDeployments",
+                  "opsworks:DescribeInstances",
+                  "opsworks:DescribeStacks",
+                  "opsworks:UpdateApp",
+                  "opsworks:UpdateStack"
+                ],
+                "Resource": "*",
+                "Effect": "Allow"
+              },
+              {
+                "Action": [
+                  "codebuild:BatchGetBuilds",
+                  "codebuild:StartBuild"
+                ],
+                "Resource": "*",
+                "Effect": "Allow"
+              }
+            ],
+            "Version": "2012-10-17"
+          }
+        }]
+      }
+    },
+    "CodePipeline" : {
+      "Type" : "AWS::CodePipeline::Pipeline",
+      "DependsOn" : "PipelineBucket",
+      "Properties" : {
+        "Name" : "PIPELINE_NAME_SUB",
+        "RoleArn": !GetAtt CodePipelineRole.Arn, 
+        "ArtifactStore" : {
+          "Type": "S3",
+          "Location": !Ref PipelineBucket,
+        },
+        "Stages" : [{
+          "Name": "Source",
+          "Actions": [{
+            "InputArtifacts": [], 
+            "Name": "Source",
+            "ActionTypeId": {
+              "Category": "Source",
+              "Owner": "ThirdParty",
+              "Version": "1",
+              "Provider": "GitHub"
+            },
+            "OutputArtifacts": [{ "Name": "RawCode" }],
+            "Configuration": {
+              "Owner": "fellou89",
+              "Repo": "aqferwebserver",
+              "Branch": "master",
+              "OAuthToken": "GIT_TOKEN_SUB"
+            },
+            "RunOrder": 1
+          }]
+        },
+        {
+          "Name": "Build",
+          "Actions": [{
+            "InputArtifacts": [{ "Name" : "RawCode" }], 
+            "Name": !Ref CodeBuild,
+            "ActionTypeId": {
+              "Category": "Build",
+              "Owner": "AWS",
+              "Version": "1",
+              "Provider": "CodeBuild"
+            },
+            "OutputArtifacts": [{ "Name": "CaddyZip" }],
+            "Configuration": {
+              "ProjectName" : "CODE_BUILD_NAME_SUB",
+            },
+            "RunOrder": 1
+          }]
+        },
+        {
+          "Name": "Deploy",
+          "Actions": [{
+            "InputArtifacts": [{ "Name" : "CaddyZip" }], 
+            "Name": !Ref CodeDeploy,
+            "ActionTypeId": {
+              "Category": "Deploy",
+              "Owner": "AWS",
+              "Version": "1",
+              "Provider": "CodeDeploy"
+            },
+            "OutputArtifacts": [],
+            "Configuration": {
+              "ApplicationName": "CODE_DEPLOY_APP_SUB", 
+              "DeploymentGroupName": ! Ref CodeDeployGroup
+            },
+            "RunOrder": 1
+          }
+        ]}]
+      }
+    }
+  }
+}

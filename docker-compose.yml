@@ -1,0 +1,8 @@
+version: 2
+
+services:
+  caddy:
+    image: 545654232789.dkr.ecr.us-east-1.amazonaws.com/ecr-aqfer1
+    build: .
+    ports:
+      - "5000:5000"
