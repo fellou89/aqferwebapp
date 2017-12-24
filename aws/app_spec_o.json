@@ -28,7 +28,7 @@
           "ReadCapacityUnits" : "5",
           "WriteCapacityUnits" : "5",
         },
-        "TableName" : "TABLE_NAME_SUB",
+        "TableName" : "DYNAMO_TABLE_SUB",
       }
     },
 
@@ -46,7 +46,7 @@
         },
         "Path" : "/",
         "Policies" : [{
-          "PolicyName": "CodeDeployEC2Policy",
+          "PolicyName": "ECSPolicy",
           "PolicyDocument": {
             "Statement": [{
               "Effect": "Allow",
@@ -73,6 +73,8 @@
                 "cloudformation:*",
                 "codedeploy:*",
                 "ec2:*",
+                "ecs:*",
+                "ecr:*",
                 "iam:AddRoleToInstanceProfile",
                 "iam:CreateInstanceProfile",
                 "iam:CreateRole",
@@ -98,7 +100,22 @@
     },
 
     "LaunchConfiguration" : {
-      "ResourceType": "AWS::AutoScaling::LaunchConfiguration", 
+      "Type": "AWS::AutoScaling::LaunchConfiguration", 
+      "Metadata" : {
+        "AWS::CloudFormation::Init": {
+          "configSets" : {
+            "default" : [ "runtask" ]
+          },
+          "runtask" : {
+            "commands" : {
+              "c" : { "command" : "service awslogs restart" },
+              "d" : { "command" : "sudo service docker restart" },
+              "e" : { "command" : "sudo start ecs" },
+              "f" : { "command" : "aws ecs run-task --cluster ECS_CLUSTER_SUB --task-definition TASK_DEFINITION_SUB --region REGION_SUB" },
+            }
+          }
+        }
+      },
       "Properties" : {
         "AssociatePublicIpAddress" : true,
         "BlockDeviceMappings": [{
@@ -108,11 +125,9 @@
             "VolumeType": "gp2"
           }
         }], 
-        "ClassicLinkVPCSecurityGroups" : [],
         "EbsOptimized" : false,
         "IamInstanceProfile": !Ref EC2InstanceProfile, 
         "ImageId" : "AMI_SUB",
-        "InstanceMonitoring": { "Enabled": true }, 
         "InstanceType" : "t2.micro",
         "KeyName" : "KEY_NAME_SUB",
         "SecurityGroups" : [ !Ref SecurityGroup ],
@@ -120,29 +135,46 @@
           "Fn::Base64": {
             "Fn::Join": ["", [
               "#!/bin/bash\n",
-              "echo ECS_CLUSTER=microEcsInstnace >> /etc/ecs/ecs.config\n",
+              "sudo yum install -y ecs-init\n",
+
+              "echo ECS_CLUSTER=ECS_CLUSTER_SUB >> /etc/ecs/ecs.config\n",
+              "echo ECS_LOGLEVEL=debug >> /etc/ecs/ecs.config\n",
+              "echo ECS_AVAILABLE_LOGGING_DRIVERS='[\"awslogs\"]' >> /etc/ecs/ecs.config\n",
+
+              "wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm\n",
+              "yum -y install aws-cfn-bootstrap-latest.amzn1.noarch.rpm\n",
+
+              "function error_exit {\n",
+              "  /opt/aws/bin/cfn-signal -e 1 --reason \"$1\" --stack ", { "Ref" : "AWS::StackName" }, " --resource LaunchConfiguration --region REGION_SUB\n",
+              "  exit 1\n",
+              "}\n",
+
+              "echo [/var/log/ecs/ecs-agent.log] >> /ecs_logs.conf\n",
+              "echo file = /var/log/ecs/ecs-agent.log.* >> /ecs_logs.conf\n",
+              "echo log_group_name = /var/log/ecs/ecs-agent.log >> /ecs_logs.conf\n",
+              "echo log_stream_name = ECS_CLUSTER_SUB/INSTANCE_ID >> /ecs_logs.conf\n",
+
+              "/opt/aws/bin/ec2-metadata -i | sed 's/instance-id: //' >> /instance_id\n",
+              "cat /ecs_logs.conf | sed 's/INSTANCE_ID/'$(cat /instance_id)'/' > /ecs_logs.conf\n",
+              "mkdir -p /var/awslogs/etc/config\n",
+              "ln -s /ecs_logs.conf /var/awslogs/etc/config/ecs_logs.conf\n",
 
               "wget https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py",
               " || error_exit 'Failed to download AWS Logs Agent.'\n",
-
-              "wget https://s3.amazonaws.com/aws-codedeploy-REGION_SUB/cloudwatch/codedeploy_logs.conf",
-              " || error_exit 'Failed to download CodeDeploy Logs conf.'\n",
-
               "chmod +x ./awslogs-agent-setup.py\n",
 
               "python awslogs-agent-setup.py -n -r REGION_SUB -c s3://aws-codedeploy-us-east-1/cloudwatch/awslogs.conf",
               " || error_exit 'Failed run awslogs-agent-setup.py.'\n",
 
-              "mkdir -p /var/awslogs/etc/config\n",
-              "cp codedeploy_logs.conf /var/awslogs/etc/config/\n",
-              "service awslogs restart\n",
+              "/opt/aws/bin/cfn-signal -e 0 --reason \"AWS ECS Agent setup complete.\" --stack ", { "Ref" : "AWS::StackName" }, " --resource LaunchConfiguration --region REGION_SUB\n",
+              "/opt/aws/bin/cfn-init --stack ", { "Ref" : "AWS::StackName" }, " --resource LaunchConfiguration --region REGION_SUB\n",
             ]]
           }
         },
       }
     },
     "AutoScalingGroup" : {
-      "ResourceType": "AWS::AutoScaling::AutoScalingGroup",
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
       "Properties" : {
         "TargetGroupARNs" : [],
         "DesiredCapacity" : 1,
@@ -185,7 +217,7 @@
         "Cooldown" : 300,
         "MinSize" : 0,
         "MaxSize" : 1,
-        "VPCZoneIdentifier" : [ "subnet-7a8a5255" ]
+        "VPCZoneIdentifier" : [ "subnet-7a8a5255" ],
         "HealthCheckGracePeriod" : 0,
         "HealthCheckType" : "EC2",
         "TerminationPolicies" : [ "Default" ],
@@ -206,33 +238,33 @@
         "Family" : "TASK_DEFINITION_SUB",
         "PlacementConstraints" : [],
         "ContainerDefinitions" : [{
-          "dnsSearchDomains": [], 
-          "environment": [], 
-          "readonlyRootFilesystem": false, 
-          "name": "caddy", 
-          "links": [], 
-          "mountPoints": [], 
-          "image": "IMAGE_SUB", 
-          "linuxParameters": {
-            "capabilities": {}
+          "DnsSearchDomains": [], 
+          "Environment": [], 
+          "ReadonlyRootFilesystem": false, 
+          "Name": "caddy", 
+          "Links": [], 
+          "MountPoints": [], 
+          "Image": "ECR_REPO_URI_SUB", 
+          "LinuxParameters": {
+            "Capabilities": {}
           }, 
-          "essential": true, 
-          "portMappings": [{
-            "protocol": "tcp", 
-            "containerPort": 5000, 
-            "hostPort": 5000
+          "Essential": true, 
+          "PortMappings": [{
+            "Protocol": "tcp", 
+            "ContainerPort": 5000, 
+            "HostPort": 5000
           }], 
-          "dnsServers": [], 
-          "dockerSecurityOptions": [], 
-          "entryPoint": [], 
-          "ulimits": [], 
-          "privileged": false, 
-          "memory": 150, 
-          "command": [], 
-          "extraHosts": [], 
-          "cpu": 0, 
-          "volumesFrom": [], 
-          "dockerLabels": {}
+          "DnsServers": [], 
+          "DockerSecurityOptions": [], 
+          "EntryPoint": [], 
+          "Ulimits": [], 
+          "Privileged": false, 
+          "Memory": 300, 
+          "Command": [], 
+          "ExtraHosts": [], 
+          "Cpu": 0, 
+          "VolumesFrom": [], 
+          "DockerLabels": {}
         }]
       }
     },
@@ -242,6 +274,7 @@
        "Properties" : {
          "GroupName" : "SECURITY_GROUP_SUB",
          "GroupDescription" : "Doing if for each instance, could create one apart to reuse",
+         "VpcId" : "vpc-f582e28d",
          "SecurityGroupIngress" : [{
            "IpProtocol" : "tcp",
            "FromPort" : "80",
