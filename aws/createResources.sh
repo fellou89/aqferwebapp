@@ -1,27 +1,7 @@
 #!/usr/bin/env bash
 # set -e
 
-
-# "ECSTaskService" : {
-#       "Type" : "AWS::ECS::Service",
-#       "Properties" : {
-#         "Cluster" : !Ref ECSCluster,
-#         "DeploymentConfiguration" : DeploymentConfiguration,
-#         "DesiredCount" : Integer,
-#         "LaunchType" : String,
-#         "LoadBalancers" : [ Load Balancer Objects, ... ],
-#         "NetworkConfiguration" : NetworkConfiguration,
-#         "PlacementConstraints" : [ PlacementConstraints, ... ],
-#         "Role" : String,
-#         "PlacementStrategies" : [ PlacementStrategies, ... ],
-#         "PlatformVersion" : String,
-#         "ServiceName" : "ECS_SERVICE_SUB",
-#         "TaskDefinition" : !Ref ECSTaskDefinition.
-#       }
-#     },
-
-
-VERSION=1
+VERSION=4
 REGION=us-east-1
 AMI=ami-55ef662f
 #  AMI=ami-fad25980 # ecs optimized ami
@@ -61,21 +41,14 @@ aws ec2 create-key-pair --key-name $KEYPAIR
 # Create cloudformation bucket
 aws s3 mb s3://$ARTIFACTS_BUCKET/ --region $REGION
    
-# Create app_spec file from template
-cat app_spec_o.json | sed 's/REGION_SUB/'$REGION'/' > /tmp/app_spec1.json
-cat /tmp/app_spec1.json | sed 's/AMI_SUB/'$AMI'/' > /tmp/app_spec2.json
-cat /tmp/app_spec2.json | sed 's/AWS_ACCOUNT_SUB/'$AWS_ACCOUNT'/' > /tmp/app_spec3.json 
-cat /tmp/app_spec3.json | sed 's/KEY_NAME_SUB/'$KEYPAIR'/' > /tmp/app_spec4.json
-cat /tmp/app_spec4.json | sed 's/SECURITY_GROUP_SUB/'$SECURITY_GROUP'/' > /tmp/app_spec5.json
-cat /tmp/app_spec5.json | sed 's/EC2_INSTANCE_ROLE_SUB/'$EC2_INSTANCE_ROLE'/' > /tmp/app_spec6.json
-cat /tmp/app_spec6.json | sed 's/TASK_DEFINITION_SUB/'$TASK_DEFINITION'/' > /tmp/app_spec7.json
-cat /tmp/app_spec7.json | sed 's/ECS_CLUSTER_SUB/'$ECS_CLUSTER'/' > /tmp/app_spec8.json
-cat /tmp/app_spec8.json | sed 's/ECS_SERVICE_SUB/'$ECS_SERVICE'/' > /tmp/app_spec9.json
-cat /tmp/app_spec9.json | sed 's#ECR_REPO_URI_SUB#'$ecrRepoUri'#' > /tmp/app_spec10.json
-cat /tmp/app_spec10.json | sed 's/DYNAMO_TABLE_SUB/'$DYNAMO_TABLE'/' > app_spec.json
-   
 # Launch cloudformation stack
-aws cloudformation package --template-file app_spec.json --output-template-file new_app_spec.json --s3-bucket $ARTIFACTS_BUCKET
-aws cloudformation deploy --template-file new_app_spec.json --stack-name $APP_NAME --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM
+aws cloudformation package --template-file template_app_spec.yml --output-template-file app_spec.yml --s3-bucket $ARTIFACTS_BUCKET
+aws cloudformation deploy --template-file app_spec.yml --stack-name $APP_NAME --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --parameter-overrides \
+  AWSAccount=$AWS_ACCOUNT \
+  Ami=$AMI \
+  RootName=$ROOT_NAME \
+  Version=$VERSION \
+  KeyPair=$KEYPAIR \
+  ECRRepoURI=$ecrRepoUri \
 
-echo "App name: " $APP_NAME
+ echo "App name: " $APP_NAME

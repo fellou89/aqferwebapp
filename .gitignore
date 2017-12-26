@@ -2,5 +2,5 @@ log/*
 tmp/*
 .secrets.yml
 aws/github_token.txt
-aws/app_spec.json
-aws/new_app_spec.json
+aws/app_spec.yml
+aws/new_app_spec.yml
