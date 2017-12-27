@@ -1,4 +1,4 @@
-localhost:8082
+:8082
 awscloudwatch debug aqfer.io development 65536
 jwt /ids/v1
 reauth {

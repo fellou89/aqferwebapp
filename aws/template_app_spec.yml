@@ -2,6 +2,15 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'ECS deployment'
 Parameters:
+  Id:
+    Description: 'AWS access key id'
+    Type: String
+  Secret:
+    Description: 'AWS access secret key'
+    Type: String
+  Jwt:
+    Description: 'JWT secret'
+    Type: String
   Version:
     Description: 'Application version'
     Type: String
@@ -213,7 +222,15 @@ Resources:
       PlacementConstraints: []
       ContainerDefinitions:
       - DnsSearchDomains: []
-        Environment: []
+        Environment:
+        - Name: "AWS_ACCESS_KEY_ID"
+          Value: !Ref Id
+        - Name: "AWS_SECRET_ACCESS_KEY"
+          Value: !Ref Secret
+        - Name: "AWS_REGION"
+          Value: !Sub "${AWS::Region}"
+        - Name: "JWT_SECRET"
+          Value: !Ref Jwt
         ReadonlyRootFilesystem: false
         Name: caddy
         Links: []
@@ -224,8 +241,8 @@ Resources:
         Essential: true
         PortMappings:
         - Protocol: tcp
-          ContainerPort: 5000
-          HostPort: 5000
+          ContainerPort: 8082
+          HostPort: 8082
         DnsServers: []
         DockerSecurityOptions: []
         EntryPoint: []
@@ -251,4 +268,8 @@ Resources:
       - IpProtocol: tcp
         FromPort: '22'
         ToPort: '22'
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: '8082'
+        ToPort: '8082'
         CidrIp: 0.0.0.0/0

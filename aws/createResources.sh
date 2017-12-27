@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # set -e
 
-VERSION=2
-ROOT_NAME=aqfer
-REGION=us-east-1
 AWS_ACCOUNT='545654232789'
+ID=$(aws --profile default configure get aws_access_key_id)
+SECRET=$(aws --profile default configure get aws_secret_access_key)
+REGION=$(aws --profile default configure get region)
+JWT=testkey
+
+VERSION=0
+ROOT_NAME=aqfer
 AMI=ami-55ef662f
 #  AMI=ami-fad25980 # ecs optimized ami
 KEYPAIR_NAME=AqferKeyPair
@@ -24,11 +28,7 @@ ARTIFACTS_BUCKET=cloudformation-art
 aws ecr create-repository --region $REGION --repository-name ecr-$ROOT_NAME'1' > /tmp/ecrUri
 aws ecr describe-repositories --region $REGION --repository-name ecr-$ROOT_NAME'1' > /tmp/ecrUri
 ecrRepoUri=$(cat /tmp/ecrUri | sed -n "N;s/.*repositoryUri.*\"\(.*\)\".*/\1/p")
-
-# Log into ecr
 aws ecr get-login --region $REGION --no-include-email | sed 's/docker login -u AWS -p \([^ ]*\) .*/\1/' | docker login -u AWS --password-stdin $ecrRepoUri
-
-# ecr
 docker tag $ROOT_NAME-caddy:latest $ecrRepoUri
 docker push $ecrRepoUri
 
@@ -44,6 +44,9 @@ aws s3 mb s3://$ARTIFACTS_BUCKET/ --region $REGION
 # Launch cloudformation stack
 aws cloudformation package --template-file template_app_spec.yml --output-template-file app_spec.yml --s3-bucket $ARTIFACTS_BUCKET
 aws cloudformation deploy --template-file app_spec.yml --stack-name $APP_NAME --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --parameter-overrides \
+  Id=$ID \
+  Secret=$SECRET \
+  Jwt=$JWT \
   Version=$VERSION \
   RootName=$ROOT_NAME \
   AWSAccount=$AWS_ACCOUNT \
