@@ -1,23 +1,22 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'ECS deployment'
-Paraneters:
-  AwsAccount:
+Parameters:
+  Version:
+    Description: 'Application version'
+    Type: String
+  RootName:
+    Description: 'Application Name root'
+    Type: String
+  AWSAccount:
     Description: 'Aws Account Id'
     Type: String
   Ami:
     Description: 'Ami template for linux EC2 instance'
     Default: 'ami-55ef662f'
     Type: String
-  RootName:
-    Description: 'Application Name root'
-    Type: String
-  Version:
-    Description: 'Application version'
-    Type: String
   AppName:
     Description: 'Root name and version combination, for use in other components'
-    Default: !Sub '${RootName}${Version}'
     Type: String
   InstanceType:
     Description: 'EC2 Instance Type'
@@ -28,27 +27,21 @@ Paraneters:
     Type: String
   SecurityGroupName:
     Description: 'Security Group name for EC2 instances'
-    Default: !Sub '${RootName}-sg${Version}'
-    Default: 
     Type: String
   EC2InstanceRoleName:
     Description: 'IAM Role name for EC2 instances'
-    Default: !Sub '${RootName}EC2InstanceRole${Version}'
-    Type: String
-  TaskDefinitionName:
-    Description: 'ECS Task Definition name'
-    Default: !Sub '${RootName}TaskDefinition${Version}'
     Type: String
   ClusterName:
     Description: 'ECS Cluster name'
-    Default: !Sub '${RootName}Cluster${Version}'
+    Type: String
+  TaskDefinitionName:
+    Description: 'ECS Task Definition name'
     Type: String
   ECRRepoURI:
     Description: 'Repo URI for uplated ECR container'
     Type: String
   DynamoTableName:
     Description: 'Name for Dynamo table'
-    Default: !Sub '${RootName}-idsync${Version}'
     Type: String
 
 Resources:
@@ -97,7 +90,7 @@ Resources:
             - logs:CreateLogStream
             - logs:PutLogEvents
             Resource:
-            - !Sub 'arn:aws:logs:us-east-1:${AwsAccount}:log-group:*'
+            - !Sub 'arn:aws:logs:us-east-1:${AWSAccount}:log-group:*'
           - Effect: Allow
             Action:
             - cloudformation:*
@@ -211,7 +204,7 @@ Resources:
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: ${ClusterName}
+      ClusterName: !Sub '${ClusterName}'
   ECSTaskDefitinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
@@ -248,6 +241,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Ref SecurityGroupName
+      GroupDescription: 'Security Group for EC2 instances'
       VpcId: vpc-f582e28d
       SecurityGroupIngress:
       - IpProtocol: tcp

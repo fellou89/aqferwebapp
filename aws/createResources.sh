@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 # set -e
 
-VERSION=4
+VERSION=2
+ROOT_NAME=aqfer
 REGION=us-east-1
+AWS_ACCOUNT='545654232789'
 AMI=ami-55ef662f
 #  AMI=ami-fad25980 # ecs optimized ami
-AWS_ACCOUNT=545654232789
-KEYPAIR=AqferKeyPair
+KEYPAIR_NAME=AqferKeyPair
 
-ROOT_NAME=aqfer
 APP_NAME=$ROOT_NAME$VERSION
-DYNAMO_TABLE=$ROOT_NAME-idsync$VERSION
 ECS_CLUSTER=$ROOT_NAME'Cluster'$VERSION
 ECS_SERVICE=$ROOT_NAME'Service'$VERSION
 EC2_INSTANCE_ROLE=$ROOT_NAME'EC2InstanceRole'$VERSION
 TASK_DEFINITION=$ROOT_NAME'TaskDefinition'$VERSION
 SECURITY_GROUP=$ROOT_NAME-sg$VERSION
+DYNAMO_TABLE=$ROOT_NAME-idsync$VERSION
 
 # Bucket name must be all lowercase, and start/end with lowecase letter or number
 ARTIFACTS_BUCKET=cloudformation-art
@@ -33,7 +33,7 @@ docker tag $ROOT_NAME-caddy:latest $ecrRepoUri
 docker push $ecrRepoUri
 
 # Create key pair
-aws ec2 create-key-pair --key-name $KEYPAIR
+aws ec2 create-key-pair --key-name $KEYPAIR_NAME
    
 #  # Create security group
 #  aws ec2 create-security-group --group-name $SECURITY_GROUP
@@ -44,11 +44,17 @@ aws s3 mb s3://$ARTIFACTS_BUCKET/ --region $REGION
 # Launch cloudformation stack
 aws cloudformation package --template-file template_app_spec.yml --output-template-file app_spec.yml --s3-bucket $ARTIFACTS_BUCKET
 aws cloudformation deploy --template-file app_spec.yml --stack-name $APP_NAME --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --parameter-overrides \
+  Version=$VERSION \
+  RootName=$ROOT_NAME \
   AWSAccount=$AWS_ACCOUNT \
   Ami=$AMI \
-  RootName=$ROOT_NAME \
-  Version=$VERSION \
-  KeyPair=$KEYPAIR \
+  AppName=$APP_NAME \
+  KeyPair=$KEYPAIR_NAME \
+  SecurityGroupName=$SECURITY_GROUP \
+  EC2InstanceRoleName=$EC2_INSTANCE_ROLE \
+  ClusterName=$ECS_CLUSTER \
+  TaskDefinitionName=$TASK_DEFINITION \
   ECRRepoURI=$ecrRepoUri \
+  DynamoTableName=$DYNAMO_TABLE
 
  echo "App name: " $APP_NAME
